@@ -33,10 +33,7 @@ public class ApplicationViewModel : NotifyPropertyChanged
         SaveToFileCommand = new RelayCommand(() => model.SaveImage());
         ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         
-        MarkEdgePointsCommand = new RelayCommand(() =>
-        {
-            ApplicationImage = model.MarkPoints();
-        });
+        MarkEdgePointsCommand = new RelayCommand(() => ApplicationImage = model.MarkPoints());
         MarkSkeletonCommand = new RelayCommand(() => ApplicationImage = model.MarkSkeleton());
         ClearCommand = new RelayCommand(() => ApplicationImage = model.Clear());
     }

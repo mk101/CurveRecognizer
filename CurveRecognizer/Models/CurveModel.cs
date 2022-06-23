@@ -25,7 +25,7 @@ public class CurveModel
 
     public BitmapImage? OpenImage()
     {
-        var image = _filesService.Open();
+        BitmapImage? image = _filesService.Open();
         if (image is null)
         {
             return _base;
@@ -62,20 +62,19 @@ public class CurveModel
             _points = _curveSplitService.SplitCurve();
         }
 
-        var width = _image.PixelWidth;
-        var height = _image.PixelHeight;
-        var stride = width * 4;
+        int width = _image.PixelWidth;
+        int height = _image.PixelHeight;
+        int stride = width * 4;
         var pixels = new byte[width * 4 * height];
         _image.CopyPixels(pixels, width * 4, 0);
         
         var colorA = new byte[] {0, 0, 255};
         var colorB = new byte[] {255, 0, 0};
 
-        var first = _points.First();
-        var last = _points.Last();
+        CurvePoint first = _points.First();
+        CurvePoint last = _points.Last();
         
         MarkPointInArray(first, 3, pixels, stride, colorA);
-        
         MarkPointInArray(last, 3, pixels, stride, colorB);
 
         _image.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
@@ -89,7 +88,7 @@ public class CurveModel
         {
             for (int j = point.Position.Y - size; j < point.Position.Y + size; j++)
             {
-                var index = j * stride + 4 * i;
+                int index = j * stride + 4 * i;
                 for (int k = 0; k < 3; k++)
                 {
                     pixels[index + k] = color[k];
@@ -112,9 +111,9 @@ public class CurveModel
             _points = _curveSplitService.SplitCurve();
         }
 
-        var width = _image.PixelWidth;
-        var height = _image.PixelHeight;
-        var stride = width * 4;
+        int width = _image.PixelWidth;
+        int height = _image.PixelHeight;
+        int stride = width * 4;
         var pixels = new byte[width * 4 * height];
         _image.CopyPixels(pixels, width * 4, 0);
         
@@ -123,7 +122,7 @@ public class CurveModel
 
         for (var i = 0; i < _points.Count; i++)
         {
-            var point = _points[i];
+            CurvePoint point = _points[i];
             var val = (double) i / _points.Count;
             var color = new byte[3];
             

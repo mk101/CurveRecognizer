@@ -16,7 +16,7 @@ public class PngFilesService : IFilesService
             Filter = Filter
         };
 
-        var result = ofd.ShowDialog();
+        bool? result = ofd.ShowDialog();
         if (result == false)
         {
             return null;
@@ -32,7 +32,7 @@ public class PngFilesService : IFilesService
             Filter = Filter
         };
 
-        var result = sfd.ShowDialog();
+        bool? result = sfd.ShowDialog();
         if (result == false)
         {
             return;

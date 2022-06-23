@@ -20,19 +20,17 @@ public class CurveSplitService
         GetPixelsColor();
         CalculateSize();
         
-        var allPoints = GetAllPoints();
+        List<Point> allPoints = GetAllPoints();
 
         FilterPointsWithDistance(allPoints, 20);
-
         AlignPoints(allPoints);
-        
         FilterPointsWithDistance(allPoints, 10);
 
-        var curvePoints = CalculateCurvePoints(allPoints);
+        List<CurvePoint> curvePoints = CalculateCurvePoints(allPoints);
 
-// #if DEBUG
-//         DebugPrint(curvePoints, 1);
-// #endif
+#if DEBUG
+        DebugPrint(curvePoints, 1);
+#endif
         return curvePoints;
     }
 
@@ -52,67 +50,59 @@ public class CurveSplitService
         {
             int distance = 10;
             var neighbors = points.Where(p => p.LengthTo(current.Position) < distance && p != current.Position).ToList();
+            
             while (!neighbors.Any())
             {
                 distance += 5;
                 neighbors = points.Where(p => p.LengthTo(current.Position) < distance && p != current.Position).ToList();
             }
 
-            if (neighbors.Count == 1)
+            if (neighbors.Count > 1 && previous is not null)
             {
-                var next = new CurvePoint(neighbors.First());
-                current.Next = next;
-                
-                previous = current;
-                current = current.Next;
-                
-                result.Add(current);
-                points.Remove(current.Position);
-                continue;
-            }
+                var (k, _) = MathHelper.FindLineEquation(previous.Position, current.Position);
+                CurvePoint? candidate = null;
+                var difference = double.MaxValue;
 
-            if (previous is null)
-            {
-                var next = new CurvePoint(neighbors.First());
-                current.Next = next;
-                
-                previous = current;
-                current = current.Next;
-                
-                result.Add(current);
-                points.Remove(current.Position);
-                continue;
-            }
-
-            var (k, _) = MathHelper.FindLineEquation(previous.Position, current.Position);
-            CurvePoint? candidate = null;
-            var difference = double.MaxValue;
-
-            foreach (var neighbor in neighbors)
-            {
-                var (candidateK, _) = MathHelper.FindLineEquation(current.Position, neighbor);
-                if (Math.Abs(k - candidateK) < difference)
+                foreach (var neighbor in neighbors)
                 {
+                    var (candidateK, _) = MathHelper.FindLineEquation(current.Position, neighbor);
+
+                    if (Math.Abs(k - candidateK) >= difference)
+                    {
+                        continue;
+                    }
+                    
                     candidate = new CurvePoint(neighbor);
                     difference = Math.Abs(k - candidateK);
                 }
+
+                // if (difference > 5.0)
+                // {
+                //     distance *= 100;
+                //     continue;
+                // }
+
+                if (candidate is null)
+                {
+                    throw new NullReferenceException("Failed to processing curve");
+                }
+                
+                current.Next = candidate;
+
+                previous = current;
+                current = current.Next;
+            
+                result.Add(current);
+                points.Remove(current.Position);
+                continue;
             }
-
-            // if (difference > 5.0)
-            // {
-            //     distance *= 100;
-            //     continue;
-            // }
-
-            if (candidate is null)
-            {
-                throw new NullReferenceException("Failed to processing curve");
-            }
-            current.Next = candidate;
-
+            
+            var next = new CurvePoint(neighbors.First());
+            current.Next = next;
+                
             previous = current;
             current = current.Next;
-            
+                
             result.Add(current);
             points.Remove(current.Position);
         }
@@ -124,7 +114,7 @@ public class CurveSplitService
     {
         for (int i = 0; i < allPoints.Count; i++)
         {
-            var point = allPoints[i];
+            Point point = allPoints[i];
             var left = new Point(point.X - 1, point.Y );
             var right = new Point(point.X + 1, point.Y);
 
@@ -144,8 +134,8 @@ public class CurveSplitService
             var (targetK, _) = MathHelper.FindLineEquation(firstPoint, secondPoint);
             var (k, b) = MathHelper.FindNormalLineEquation(targetK, point);
 
-            var start = FindAbscissaEdge(point, k, b, false);
-            var finish = FindAbscissaEdge(point, k, b);
+            int start = FindAbscissaEdge(point, k, b, false);
+            int finish = FindAbscissaEdge(point, k, b);
 
             point.X = (start + finish) / 2;
             point.Y = MathHelper.FindOrdinate(k, b, point.X);
@@ -169,29 +159,29 @@ public class CurveSplitService
 
     private Point FindEdgePoint(in Point start, bool isUpDirection = true)
     {
-        var step = isUpDirection ? 1 : -1;
-        var delta = 0;
-        while (GetPixel(start.X, start.Y + delta).IsBlack)
+        int step = isUpDirection ? 1 : -1;
+        int y = start.Y;
+        while (GetPixel(start.X, y).IsBlack)
         {
-            delta += step;
+            y += step;
         }
 
-        delta -= step;
+        y -= step;
 
-        return new Point(start.X, start.Y + delta);
+        return new Point(start.X, y);
     }
 
     private void DebugPrint(IReadOnlyList<CurvePoint> points, int size)
     {
-        var width = _image.PixelWidth;
-        var height = _image.PixelHeight;
+        int width = _image.PixelWidth;
+        int height = _image.PixelHeight;
         var pixels = new byte[width * 4 * height];
         _image.CopyPixels(pixels, width * 4, 0);
 
         for (var i = 0; i < points.Count; i++)
         {
-            var point = points[i].Position;
-            var stride = width * 4;
+            Point point = points[i].Position;
+            int stride = width * 4;
 
             var colorA = new byte[] {0, 0, 255};
             var colorB = new byte[] {255, 0, 0};
@@ -199,7 +189,7 @@ public class CurveSplitService
             {
                 for (int y = point.Y - size; y < point.Y + size; y++)
                 {
-                    var index = y * stride + 4 * x;
+                    int index = y * stride + 4 * x;
                     var val = (double)i / points.Count;
                     pixels[index] = (byte)(colorA[0] + val * (colorB[0] - colorA[0]));
                     pixels[index + 1] = (byte)(colorA[1] + val * (colorB[1] - colorA[1]));
@@ -214,7 +204,7 @@ public class CurveSplitService
         BitmapEncoder encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(writeableBitmap));
 
-        using var fileStream = new FileStream(@"D:\debug_curve.png", FileMode.Create);
+        using var fileStream = new FileStream(@"C:\debug_curve.png", FileMode.Create);
         encoder.Save(fileStream);
     }
 
@@ -249,8 +239,8 @@ public class CurveSplitService
 
     private List<Point> GetAllPoints()
     {
-        var width = _image.PixelWidth;
-        var height = _image.PixelHeight;
+        int width = _image.PixelWidth;
+        int height = _image.PixelHeight;
         var allPoints = new List<Point>();
 
         for (int i = 0; i < width; i++)
@@ -274,22 +264,22 @@ public class CurveSplitService
 
     private void GetPixelsColor()
     {
-        var width = _image.PixelWidth;
-        var height = _image.PixelHeight;
+        int width = _image.PixelWidth;
+        int height = _image.PixelHeight;
         var pixels = new byte[width * 4 * height];
         _image.CopyPixels(pixels, width * 4, 0);
 
         _colors = new Color[width, height];
-        var stride = width * 4;
+        int stride = width * 4;
         for (int j = 0; j < height; j++)
         {
             for (int i = 0; i < width; i++)
             {
-                var index = j * stride + 4 * i;
-                var red = pixels[index];
-                var green = pixels[index + 1];
-                var blue = pixels[index + 2];
-                var alpha = pixels[index + 3];
+                int index = j * stride + 4 * i;
+                byte red = pixels[index];
+                byte green = pixels[index + 1];
+                byte blue = pixels[index + 2];
+                byte alpha = pixels[index + 3];
 
                 if (red != 255 && red == green && green == blue)
                 {
@@ -302,13 +292,10 @@ public class CurveSplitService
         }
     }
 
-    /// <summary>
-    /// Get pixel color with overflow
-    /// </summary>
     private Color GetPixel(int x, int y)
     {
-        var width = _colors.GetLength(0);
-        var height = _colors.GetLength(1);
+        int width = _colors.GetLength(0);
+        int height = _colors.GetLength(1);
 
         if (x < 0 || x >= width)
         {
@@ -333,16 +320,16 @@ public class CurveSplitService
     
     private void CalculateSize()
     {
-        var width = _colors.GetLength(0);
-        var height = _colors.GetLength(1);
+        int width = _colors.GetLength(0);
+        int height = _colors.GetLength(1);
 
-        List<int> sizes = new List<int>();
+        var sizes = new List<int>();
         
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                var color = _colors[i, j];
+                Color color = _colors[i, j];
                 if (color.IsWhite)
                 {
                     continue;
